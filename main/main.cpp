@@ -32,7 +32,7 @@ static const char* TAG = "main.cpp";
 /**
  * WebAssembly app 
 */
-#include "./data.h"
+#include "data.h"
 
 struct Timer {
   bool active;
@@ -54,9 +54,9 @@ struct AppInstance {
   Timer timers[MAX_TIMERS];
 };
 
-WasmFile files[] = {
-  { .name = "blink_led.wasm", .data = wasm_project_bg_wasm, .size = wasm_project_bg_wasm_len }
-};
+//WasmFile files[] = {
+//  { .name = "project_bg.wasm", .data = wasm_project_bg_wasm, .size = wasm_project_bg_wasm_len }
+//};
 AppInstance apps[MAX_APP_INSTANCES];
 
 
@@ -236,15 +236,15 @@ void wasm_task(void *arg){
     M3Result result = m3Err_none;
     AppInstance *app = (AppInstance*)arg;
 
-    WasmFile *file = NULL;
-    for (int i = 0; i < sizeof(files) / sizeof(WasmFile); i++) {
-      if (strcmp(files[i].name, app->path) == 0) {
-        file = &files[i];
-        break;
-      }
-    }
+    //WasmFile *file = NULL;
+    //for (int i = 0; i < sizeof(files) / sizeof(WasmFile); i++) {
+    //  if (strcmp(files[i].name, app->path) == 0) {
+    //    file = &files[i];
+    //    break;
+    //  }
+    //}
 
-  if (!file) ESP_LOGE(TAG,"loadFile not found");
+    //if (!file) ESP_LOGE(TAG,"loadFile not found");
 
     printf("Loading WebAssembly...\n");
     IM3Environment env = m3_NewEnvironment ();
@@ -253,12 +253,14 @@ void wasm_task(void *arg){
     IM3Runtime runtime = m3_NewRuntime (env, 1024, app);
     if (!runtime) ESP_LOGE(TAG,"m3_NewRuntime failed");
 
-#ifdef WASM_MEMORY_LIMIT
-    runtime->memoryLimit = WASM_MEMORY_LIMIT;
-#endif
+//#ifdef WASM_MEMORY_LIMIT
+//    runtime->memoryLimit = WASM_MEMORY_LIMIT;
+//#endif
+    runtime->memoryLimit = 115515;
 
     IM3Module module;
-    result = m3_ParseModule (env, &module, file->data, file->size);
+    //result = m3_ParseModule (env, &module, file->data, file->size);
+    result = m3_ParseModule (env, &module, wasm_project_bg_wasm, wasm_project_bg_wasm_len);
     if (result) ESP_LOGE(TAG,"m3_ParseModule: %s", result);
 
     result = m3_LoadModule (runtime, module);
@@ -299,42 +301,6 @@ int runWasmFile(const char *path) {
   return -1;
 }
 
-//static void run_wasm(void)
-//{
-//    M3Result result = m3Err_none;
-//
-//    uint8_t* wasm = (uint8_t*)fib32_wasm;
-//    uint32_t fsize = fib32_wasm_len;
-//
-//    printf("Loading WebAssembly...\n");
-//    IM3Environment env = m3_NewEnvironment ();
-//    if (!env) FATAL("m3_NewEnvironment failed");
-//
-//    IM3Runtime runtime = m3_NewRuntime (env, 1024, NULL);
-//    if (!runtime) FATAL("m3_NewRuntime failed");
-//
-//    IM3Module module;
-//    result = m3_ParseModule (env, &module, wasm, fsize);
-//    if (result) FATAL("m3_ParseModule: %s", result);
-//
-//    result = m3_LoadModule (runtime, module);
-//    if (result) FATAL("m3_LoadModule: %s", result);
-//
-//    IM3Function f;
-//    result = m3_FindFunction (&f, runtime, "fib");
-//    if (result) FATAL("m3_FindFunction: %s", result);
-//
-//    printf("Running...\n");
-//
-//    result = m3_CallV(f, 24);
-//    if (result) FATAL("m3_Call: %s", result);
-//
-//    unsigned value = 0;
-//    result = m3_GetResultsV (f, &value);
-//    if (result) FATAL("m3_GetResults: %s", result);
-//
-//    printf("Result: %u\n", value);
-//}
 
 extern "C" void app_main(void)
 {

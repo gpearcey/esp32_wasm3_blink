@@ -11,7 +11,7 @@ extern "C" {
 
 
 
-const LED: i32 = 0x04;
+const LED: i32 = 0x02;
 const LOW: i32 = 0x00;
 const HIGH: i32 = 0x01;
 
