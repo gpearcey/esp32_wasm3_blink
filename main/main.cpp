@@ -63,14 +63,14 @@ AppInstance apps[MAX_APP_INSTANCES];
 /**
  * Foward Declarations
 */
-bool getGPIO(uint32_t gpio_num, gpio_num_t &gpio_num_value);
+bool getGPIO(int32_t gpio_num, gpio_num_t &gpio_num_value);
 int runWasmFile(const char *path);
 
 
 /**
  * ESP32 LED functions
 */
-void blink_led(uint32_t blink_gpio, uint32_t led_state)
+void blink_led(int32_t blink_gpio, uint32_t led_state)
 {
     gpio_num_t blink_gpio_val;
     getGPIO(blink_gpio, blink_gpio_val);
@@ -78,7 +78,7 @@ void blink_led(uint32_t blink_gpio, uint32_t led_state)
     gpio_set_level(blink_gpio_val, led_state);
 };
 
-void configure_led(uint32_t blink_gpio)
+void configure_led(int32_t blink_gpio)
 {
     gpio_num_t blink_gpio_val;
     getGPIO(blink_gpio, blink_gpio_val);
@@ -93,7 +93,7 @@ void configure_led(uint32_t blink_gpio)
 */
 m3ApiRawFunction(m3_blink_led){
    // m3ApiReturnType(void);
-    m3ApiGetArg(uint32_t, blink_gpio);
+    m3ApiGetArg(int32_t, blink_gpio);
     m3ApiGetArg(uint8_t, led_state);
 
     blink_led(blink_gpio,led_state);
@@ -103,7 +103,7 @@ m3ApiRawFunction(m3_blink_led){
 
 m3ApiRawFunction(m3_configure_led){
     //m3ApiReturnType (void);
-    m3ApiGetArg(uint32_t, blink_gpio);
+    m3ApiGetArg(int32_t, blink_gpio);
 
     configure_led(blink_gpio);
     m3ApiSuccess();
