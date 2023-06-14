@@ -1,16 +1,7 @@
-//
-//  Wasm3 - high performance WebAssembly interpreter written in C.
-//
-//  Copyright © 2019 Steven Massey, Volodymyr Shymanskyy.
-//  All rights reserved.
-//
-
-#include "esp_system.h"
-
 #include <stdio.h>
 #include <time.h>
 #include <unistd.h>
-
+#include "esp_system.h"
 #include "wasm3.h"
 #include "driver/gpio.h"
 #include "extra/fib32.wasm.h"
@@ -24,15 +15,15 @@
 #define NATIVE_STACK_SIZE (4*1024)
 #define MAX_APP_INSTANCES 26
 #define MAX_TIMERS 2
-//#define FATAL(msg, ...) { printf("Fatal: " msg "\n", ##__VA_ARGS__); return; }
-static const char* TAG = "main.cpp";
 
 #define m3ApiGetApp(NAME) AppInstance *NAME = (AppInstance*) m3_GetUserData(runtime);
+
+static const char* TAG = "main.cpp";
 
 /**
  * WebAssembly app 
 */
-#include "data.h"
+#include "../../wasm-project/pkg/wasm_project_bg.wasm.h"
 
 struct Timer {
   bool active;
@@ -168,14 +159,15 @@ bool getGPIO(uint32_t gpio_num, gpio_num_t &gpio_num_value){
 
 
 }
-/**
+
+/********************************************************************************************************************
  * Foward Declarations
 */
 
 int runWasmFile(const char *path);
 
 
-/**
+/*************************************************************************************************************
  * ESP32 LED functions
 */
 void blink_led(int32_t blink_gpio, uint32_t led_state)
@@ -196,7 +188,7 @@ void configure_led(int32_t blink_gpio)
     gpio_set_direction(blink_gpio_val, GPIO_MODE_OUTPUT);
 };
 
-/**
+/********************************************************************************************************************
  * API Bindings
 */
 m3ApiRawFunction(m3_blink_led){
@@ -217,10 +209,11 @@ m3ApiRawFunction(m3_configure_led){
     m3ApiSuccess();
 };
 
+   
 
-    
-
-
+/**
+ * Linking led control functions
+*/
 M3Result  LinkESP32(IM3Runtime runtime)
 {
     IM3Module module = runtime->modules;
@@ -232,6 +225,10 @@ M3Result  LinkESP32(IM3Runtime runtime)
     return m3Err_none;
 }
 
+/**
+ * wasm_task
+ * Parses wasm module
+*/
 void wasm_task(void *arg){
     M3Result result = m3Err_none;
     AppInstance *app = (AppInstance*)arg;
@@ -279,11 +276,11 @@ void wasm_task(void *arg){
 }
 
 int runWasmFile(const char *path) {
-   printf("Starting ");
-  printf(path);
-  printf(", free heap ");
-  //printf(ESP.getFreeHeap());
-  printf("\n");
+   //printf("Starting ");
+   //printf(path);
+   //printf(", free heap ");
+   //printf(ESP.getFreeHeap());
+   //printf("\n");
 
   for (int i = 0; i < MAX_APP_INSTANCES; i++) {
     if (apps[i].active) {
@@ -308,9 +305,7 @@ extern "C" void app_main(void)
 
     clock_t start = clock();
     runWasmFile("startup.wasm");
-    clock_t end = clock();
-
-    
+    clock_t end = clock();    
 
     printf("Elapsed: %ld ms\n", (end - start)*1000 / CLOCKS_PER_SEC);
 
