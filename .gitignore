@@ -3,3 +3,4 @@ build/
 sdkconfig
 sdkconfig*
 wasm-project/target/
+wasm-project/pkg/
