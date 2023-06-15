@@ -4,4 +4,4 @@ sdkconfig
 sdkconfig*
 wasm-project/target/
 */target/
-esp-idf-project/main/wasm_project.wasm.h
+*.wasm.h
