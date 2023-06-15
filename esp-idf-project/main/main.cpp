@@ -10,45 +10,17 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
-#define WASM_STACK_SLOTS (512)
-#define WASM_MEMORY_LIMIT (2*1024)
-#define NATIVE_STACK_SIZE (4*1024)
-#define MAX_APP_INSTANCES 26
-#define MAX_TIMERS 2
-
-#define m3ApiGetApp(NAME) AppInstance *NAME = (AppInstance*) m3_GetUserData(runtime);
-
-static const char* TAG = "main.cpp";
-
 /**
  * WebAssembly app 
 */
-#include "../../wasm-project/target/wasm32-unknown-unknown/release/wasm_project.wasm.h"
+#include "wasm_project.wasm.h"
 
-struct Timer {
-  bool active;
-  int id;
-  int interval;
-  int previousRunTime;
-};
+#define WASM_STACK_SLOTS (512)
+#define WASM_MEMORY_LIMIT (2*1024)
+#define NATIVE_STACK_SIZE (4*1024)
 
-struct WasmFile {
-  const char *name;
-  uint8_t *data;
-  uint32_t size;
-};
 
-struct AppInstance {
-  bool active;
-  int id;
-  const char *path;
-  Timer timers[MAX_TIMERS];
-};
-
-//WasmFile files[] = {
-//  { .name = "project_bg.wasm", .data = wasm_project_bg_wasm, .size = wasm_project_bg_wasm_len }
-//};
-AppInstance apps[MAX_APP_INSTANCES];
+static const char* TAG = "main.cpp";
 
 
 /**
@@ -164,7 +136,7 @@ bool getGPIO(uint32_t gpio_num, gpio_num_t &gpio_num_value){
  * Foward Declarations
 */
 
-int runWasmFile(const char *path);
+void runWasmFile(const char *path);
 
 
 /*************************************************************************************************************
@@ -176,6 +148,7 @@ void blink_led(int32_t blink_gpio, uint32_t led_state)
     getGPIO(blink_gpio, blink_gpio_val);
     /* Set the GPIO level according to the state (LOW or HIGH)*/
     gpio_set_level(blink_gpio_val, led_state);
+    ESP_LOGI(TAG,"blink_led called with state %" PRIu32 "", led_state);
 };
 
 void configure_led(int32_t blink_gpio)
@@ -188,27 +161,32 @@ void configure_led(int32_t blink_gpio)
     gpio_set_direction(blink_gpio_val, GPIO_MODE_OUTPUT);
 };
 
+void delay(int32_t ms){
+    vTaskDelay(pdMS_TO_TICKS(ms)); // Perform the delay
+};
+
 /********************************************************************************************************************
  * API Bindings
 */
 m3ApiRawFunction(m3_blink_led){
-   // m3ApiReturnType(void);
     m3ApiGetArg(int32_t, blink_gpio);
     m3ApiGetArg(uint8_t, led_state);
-
     blink_led(blink_gpio,led_state);
 
     m3ApiSuccess();
 };
 
 m3ApiRawFunction(m3_configure_led){
-    //m3ApiReturnType (void);
     m3ApiGetArg(int32_t, blink_gpio);
-
     configure_led(blink_gpio);
     m3ApiSuccess();
 };
 
+m3ApiRawFunction(m3_delay){
+    m3ApiGetArg(int32_t, ms);
+    delay(ms);
+    m3ApiSuccess();
+};
    
 
 /**
@@ -221,6 +199,7 @@ M3Result  LinkESP32(IM3Runtime runtime)
 
     m3_LinkRawFunction (module, module_name, "blink_led",           "v(ii)",    &m3_blink_led);
     m3_LinkRawFunction (module, module_name, "configure_led",       "v(i)",    &m3_configure_led);
+    m3_LinkRawFunction (module, module_name, "delay",               "v(i)",    &m3_delay);
 
     return m3Err_none;
 }
@@ -231,32 +210,18 @@ M3Result  LinkESP32(IM3Runtime runtime)
 */
 void wasm_task(void *arg){
     M3Result result = m3Err_none;
-    AppInstance *app = (AppInstance*)arg;
-
-    //WasmFile *file = NULL;
-    //for (int i = 0; i < sizeof(files) / sizeof(WasmFile); i++) {
-    //  if (strcmp(files[i].name, app->path) == 0) {
-    //    file = &files[i];
-    //    break;
-    //  }
-    //}
-
-    //if (!file) ESP_LOGE(TAG,"loadFile not found");
 
     printf("Loading WebAssembly...\n");
     IM3Environment env = m3_NewEnvironment ();
     if (!env) ESP_LOGE(TAG,"m3_NewEnvironment failed");
 
-    IM3Runtime runtime = m3_NewRuntime (env, 1024, app);
+    IM3Runtime runtime = m3_NewRuntime (env, WASM_STACK_SLOTS, NULL);
     if (!runtime) ESP_LOGE(TAG,"m3_NewRuntime failed");
 
-//#ifdef WASM_MEMORY_LIMIT
-//    runtime->memoryLimit = WASM_MEMORY_LIMIT;
-//#endif
-    runtime->memoryLimit = 115515;
+
+    runtime->memoryLimit = WASM_MEMORY_LIMIT;
 
     IM3Module module;
-    //result = m3_ParseModule (env, &module, file->data, file->size);
     result = m3_ParseModule (env, &module, wasm_project_wasm, wasm_project_wasm_len);
     if (result) ESP_LOGE(TAG,"m3_ParseModule: %s", result);
 
@@ -267,49 +232,29 @@ void wasm_task(void *arg){
     if (result) ESP_LOGE(TAG,"LinkESP32: %s", result);
 
     IM3Function f;
-    result = m3_FindFunction (&f, runtime, "main");
+    result = m3_FindFunction (&f, runtime, "_start");
     if (result) ESP_LOGE(TAG,"m3_FindFunction: %s", result);
 
-    result = m3_CallV(f, 24);//idk what 24 is for
+    result = m3_CallV(f);
 
     if (result) ESP_LOGE(TAG,"m3_GetResults: %s", result);//should not arrive here
 }
 
-int runWasmFile(const char *path) {
-   //printf("Starting ");
-   //printf(path);
-   //printf(", free heap ");
-   //printf(ESP.getFreeHeap());
-   //printf("\n");
+void runWasmFile(const char *path) {
 
-  for (int i = 0; i < MAX_APP_INSTANCES; i++) {
-    if (apps[i].active) {
-      continue;
-    }
-
-    apps[i].active = true;
-    apps[i].id = i;
-    apps[i].path = path;
-    xTaskCreate(&wasm_task, "wasm3", NATIVE_STACK_SIZE, (void*)&apps[i], 5, NULL);
-    return i;
-  }
-
-  printf("No free apps");
-  return -1;
+    xTaskCreate(
+        &wasm_task,           // Pointer to the task entry function.
+        "wasm3",              // A descriptive name for the task for debugging.
+        NATIVE_STACK_SIZE,    // size of the task stack in bytes.
+        NULL,                 // Optional pointer to pvParameters
+        5,                    // priority at which the task should run
+        NULL                  // Optional pass back task handle
+    );
+    return;
 }
 
 
 extern "C" void app_main(void)
 {
-    printf("\nWasm3 v" M3_VERSION " on " CONFIG_IDF_TARGET ", build " __DATE__ " " __TIME__ "\n");
-
-    clock_t start = clock();
     runWasmFile("startup.wasm");
-    clock_t end = clock();    
-
-    printf("Elapsed: %ld ms\n", (end - start)*1000 / CLOCKS_PER_SEC);
-
-    sleep(3);
-    printf("Restarting...\n\n\n");
-    esp_restart();
 }
