@@ -9,6 +9,8 @@
 #include <m3_env.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include <unistd.h>
+#include <esp_task_wdt.h>
 
 #define WASM_STACK_SLOTS (512)
 #define WASM_MEMORY_LIMIT (2*1024)
@@ -45,6 +47,8 @@ struct AppInstance {
   const char *path;
   Timer timers[MAX_TIMERS];
 };
+
+
 
 //WasmFile files[] = {
 //  { .name = "project.wasm", .data = wasm_project_wasm, .size = wasm_project_wasm_len }
@@ -190,27 +194,32 @@ void configure_led(int32_t blink_gpio)
     gpio_set_direction(blink_gpio_val, GPIO_MODE_OUTPUT);
 };
 
+void delay(int32_t ms){
+    vTaskDelay(pdMS_TO_TICKS(ms)); // Perform the delay
+};
+
 /********************************************************************************************************************
  * API Bindings
 */
 m3ApiRawFunction(m3_blink_led){
-   // m3ApiReturnType(void);
     m3ApiGetArg(int32_t, blink_gpio);
     m3ApiGetArg(uint8_t, led_state);
-
     blink_led(blink_gpio,led_state);
 
     m3ApiSuccess();
 };
 
 m3ApiRawFunction(m3_configure_led){
-    //m3ApiReturnType (void);
     m3ApiGetArg(int32_t, blink_gpio);
-
     configure_led(blink_gpio);
     m3ApiSuccess();
 };
 
+m3ApiRawFunction(m3_delay){
+    m3ApiGetArg(int32_t, ms);
+    delay(ms);
+    m3ApiSuccess();
+};
    
 
 /**
@@ -223,6 +232,7 @@ M3Result  LinkESP32(IM3Runtime runtime)
 
     m3_LinkRawFunction (module, module_name, "blink_led",           "v(ii)",    &m3_blink_led);
     m3_LinkRawFunction (module, module_name, "configure_led",       "v(i)",    &m3_configure_led);
+    m3_LinkRawFunction (module, module_name, "delay",               "v(i)",    &m3_delay);
 
     return m3Err_none;
 }
