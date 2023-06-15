@@ -23,7 +23,8 @@ static const char* TAG = "main.cpp";
 /**
  * WebAssembly app 
 */
-#include "../../wasm-project/target/wasm32-unknown-unknown/release/wasm_project.wasm.h"
+//#include "../../wasm-project/target/wasm32-unknown-unknown/release/wasm_project.wasm.h"
+#include "wasm_project.wasm.h"
 
 struct Timer {
   bool active;
@@ -46,7 +47,7 @@ struct AppInstance {
 };
 
 //WasmFile files[] = {
-//  { .name = "project_bg.wasm", .data = wasm_project_bg_wasm, .size = wasm_project_bg_wasm_len }
+//  { .name = "project.wasm", .data = wasm_project_wasm, .size = wasm_project_wasm_len }
 //};
 AppInstance apps[MAX_APP_INSTANCES];
 
@@ -176,6 +177,7 @@ void blink_led(int32_t blink_gpio, uint32_t led_state)
     getGPIO(blink_gpio, blink_gpio_val);
     /* Set the GPIO level according to the state (LOW or HIGH)*/
     gpio_set_level(blink_gpio_val, led_state);
+    ESP_LOGI(TAG,"blink_led called with state %" PRIu32 "", led_state);
 };
 
 void configure_led(int32_t blink_gpio)
@@ -247,13 +249,13 @@ void wasm_task(void *arg){
     IM3Environment env = m3_NewEnvironment ();
     if (!env) ESP_LOGE(TAG,"m3_NewEnvironment failed");
 
-    IM3Runtime runtime = m3_NewRuntime (env, 1024, app);
+    IM3Runtime runtime = m3_NewRuntime (env, WASM_STACK_SLOTS, app);
     if (!runtime) ESP_LOGE(TAG,"m3_NewRuntime failed");
 
-//#ifdef WASM_MEMORY_LIMIT
-//    runtime->memoryLimit = WASM_MEMORY_LIMIT;
-//#endif
-    runtime->memoryLimit = 115515;
+
+    runtime->memoryLimit = WASM_MEMORY_LIMIT;
+
+    //runtime->memoryLimit = 1000*1024;
 
     IM3Module module;
     //result = m3_ParseModule (env, &module, file->data, file->size);
@@ -267,7 +269,7 @@ void wasm_task(void *arg){
     if (result) ESP_LOGE(TAG,"LinkESP32: %s", result);
 
     IM3Function f;
-    result = m3_FindFunction (&f, runtime, "main");
+    result = m3_FindFunction (&f, runtime, "_start");
     if (result) ESP_LOGE(TAG,"m3_FindFunction: %s", result);
 
     result = m3_CallV(f, 24);//idk what 24 is for
