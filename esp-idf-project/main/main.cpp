@@ -23,7 +23,7 @@ static const char* TAG = "main.cpp";
 /**
  * WebAssembly app 
 */
-#include "../../wasm-project/pkg/wasm_project_bg.wasm.h"
+#include "../../wasm-project/target/wasm32-unknown-unknown/release/wasm_project.wasm.h"
 
 struct Timer {
   bool active;
@@ -257,7 +257,7 @@ void wasm_task(void *arg){
 
     IM3Module module;
     //result = m3_ParseModule (env, &module, file->data, file->size);
-    result = m3_ParseModule (env, &module, wasm_project_bg_wasm, wasm_project_bg_wasm_len);
+    result = m3_ParseModule (env, &module, wasm_project_wasm, wasm_project_wasm_len);
     if (result) ESP_LOGE(TAG,"m3_ParseModule: %s", result);
 
     result = m3_LoadModule (runtime, module);
