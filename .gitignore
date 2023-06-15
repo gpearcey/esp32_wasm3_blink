@@ -3,4 +3,5 @@ build/
 sdkconfig
 sdkconfig*
 wasm-project/target/
-wasm-project/pkg/
+*/target/
+esp-idf-project/main/wasm_project.wasm.h
